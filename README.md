@@ -10,7 +10,7 @@ document-driven, and vary by flag state.
 ```
 MaritimeOS/
 ├── backend/     Django + Django REST Framework API (see backend/README.md history in docs/)
-├── frontend/    Placeholder — not initialized yet
+├── frontend/    Next.js (App Router, TypeScript, Tailwind CSS) UI
 ├── docs/        Architecture and project documentation
 ├── .gitignore
 └── README.md    This file
@@ -62,8 +62,38 @@ Dev-only setup: SQLite, `DEBUG=True`. Not configured for production.
 
 ## Frontend
 
-Not initialized yet. `frontend/` currently exists as an empty
-placeholder directory reserved for the future Next.js application.
+Next.js (App Router, TypeScript, Tailwind CSS) app under
+[`frontend/`](frontend/). No UI component library, state management
+library, or authentication yet — see [`frontend/README.md`](frontend/README.md)
+for its internal structure.
+
+### Install
+
+```bash
+cd frontend
+npm install
+```
+
+### Environment variable
+
+Copy `frontend/.env.example` to `frontend/.env.local` and set:
+
+```
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api
+```
+
+This is the only environment variable currently required — it points
+the frontend at the backend's API base URL (read in
+`frontend/src/lib/api/config.ts`, never hardcoded in application code).
+
+### Run
+
+```bash
+cd frontend
+npm run dev
+```
+
+Opens at [http://localhost:3000](http://localhost:3000).
 
 ## Documentation
 
