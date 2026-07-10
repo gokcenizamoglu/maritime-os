@@ -1,0 +1,17 @@
+-r base.txt
+
+# No production-only packages are added here yet — none can be
+# confidently determined from the current codebase:
+#   - No WSGI/ASGI server is wired up (no wsgi.py/asgi.py exists, no
+#     WSGI_APPLICATION setting, no Procfile) -> which server (gunicorn,
+#     uvicorn, waitress, ...) is unknown; adding one would be a guess.
+#   - DATABASES in settings.py is SQLite, explicitly documented as
+#     dev-only (see that file's docstring) -> a production DB driver
+#     (psycopg2/psycopg, mysqlclient) can't be chosen without knowing
+#     which database production will actually use.
+#   - No static-file serving package (whitenoise, etc.) is referenced.
+#   - No env/secrets-loading library (python-dotenv, django-environ) is
+#     imported; settings.py currently hardcodes a dev SECRET_KEY.
+# Each of these is a real decision (server choice, DB engine, secrets
+# strategy) that needs to be made deliberately, not guessed here. Add
+# the corresponding package the same change that wires up the feature.

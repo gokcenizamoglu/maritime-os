@@ -1,0 +1,6 @@
+# Runtime dependencies actually imported by the codebase — verified by
+# grepping every `import`/`from` statement across backend/ (see the
+# commit that introduced this split for the full audit). Nothing here
+# is speculative.
+Django==6.0.2
+djangorestframework==3.16.1
