@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { AuthenticatedUser } from "@/types/auth";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -10,8 +11,12 @@ import { Topbar } from "./Topbar";
  * below that it becomes an off-canvas panel toggled from the topbar —
  * plain React state, no external library, per the constraint not to
  * install one for this slice.
+ *
+ * `user` is fetched server-side by app/(app)/layout.tsx (the only
+ * place that calls GET /api/auth/me/) and passed down — AppShell itself
+ * makes no API calls, it just renders what it's given.
  */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, user }: { children: React.ReactNode; user: AuthenticatedUser }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
@@ -35,7 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onMenuClick={() => setMobileNavOpen((open) => !open)} />
+        <Topbar user={user} onMenuClick={() => setMobileNavOpen((open) => !open)} />
         <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>

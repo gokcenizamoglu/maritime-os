@@ -5,7 +5,7 @@ import { ApiErrorState } from "@/components/feedback/ApiErrorState";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { WorkflowStepStatusBadge } from "@/components/workflow/WorkflowStepStatusBadge";
-import type { ApiResult } from "@/lib/api/client";
+import type { ApiResult } from "@/lib/api/result";
 import type { ChecklistItem } from "@/types/checklist";
 import type { ServiceRequestDetail } from "@/types/service-request";
 import type { TimelineEntry } from "@/types/timeline";
