@@ -1,10 +1,8 @@
 /**
- * Shared API-facing types. Kept minimal and framework-agnostic — no
- * per-endpoint response shapes yet, since no feature calls the backend
- * from this initial shell. This mirrors the two error shapes the
- * Django REST Framework backend actually returns (see
- * backend/config/permissions.py and DRF's default exception handling),
- * so future feature code has one shared place to import them from
+ * Shared API-facing types, framework-agnostic. This mirrors the actual
+ * shapes the Django REST Framework backend returns (see
+ * backend/config/permissions.py and DRF's default exception handling /
+ * pagination), so feature code has one shared place to import them from
  * instead of redefining them per call site.
  */
 
@@ -17,3 +15,19 @@ export interface ApiDetailError {
 }
 
 export type ApiError = ApiFieldErrors | ApiDetailError;
+
+/**
+ * DRF's `PageNumberPagination` envelope — matches
+ * backend/config/pagination.py::StandardResultsPagination exactly
+ * (verified against a real response, not assumed). Currently applied to
+ * ServiceRequest and Document list endpoints only; NOT checklist-items
+ * or workflow-steps, which still return a plain array — see
+ * docs/FRONTEND_INFORMATION_ARCHITECTURE.md for which endpoints are
+ * paginated and why not all of them are.
+ */
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}

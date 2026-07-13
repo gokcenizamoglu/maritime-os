@@ -68,7 +68,18 @@ All routes not listed above (Directory, Administration, customer portal) are
 ## 4. Shared operational model — DECIDED
 
 - One global list at `/operations` — no per-module duplicate lists in this slice.
-- Verified backend reality: **the list endpoint returns no `module` field and no query-param filtering of any kind** (`ServiceRequestViewSet` has no `filter_backends`, `filterset_fields`, `search_fields`, or `ordering_fields` configured, and `catalog.ServiceType` has no `module` field). A module filter is **not implemented** in this slice — it would imply server support that does not exist.
+- **Update (frontend pagination/filtering sprint):** `/operations` now consumes the paginated `ServiceRequestViewSet` list (`{count, next, previous, results}`) with real pagination, search, and ordering wired to the URL query string. Query-parameter support is **three-tiered** — do not assume backend support implies a frontend control, or that a frontend control implies every backend capability is exposed:
+
+  | Param | Backend support | Frontend status |
+  |---|---|---|
+  | `page`, `page_size` | Yes (`StandardResultsPagination`, max 100) | **Exposed** — Previous/Next links; sanitized (non-numeric/non-positive values are dropped, never forwarded) |
+  | `status` | Yes (`filterset_fields`) | **Exposed** — dropdown restricted to the closed `ServiceRequest.Status` set; any other value is dropped, not forwarded |
+  | `search` | Yes (`SearchFilter`) | **Exposed** — free-text box |
+  | `ordering` | Yes (`OrderingFilter`, 4 fields) | **Exposed** — dropdown restricted to the backend's approved `ordering_fields`; anything else is dropped |
+  | `customer`, `vessel`, `service_type`, `flag` | Yes (`filterset_fields`) | **Deferred — not read from the URL, not forwarded to the backend, no UI control.** The list response only ever returns `customer_name`/`vessel_name`/`service_type_name`/`flag_name` as flat strings, never an id, and no Customers/Vessels/Catalog list endpoint exists yet to resolve a display name to the id these filters need. Accepting a raw id from a public URL with no UI affordance to set it correctly, and no way to validate it client-side, would expose backend capability this frontend cannot yet present safely. Revisit once a Directory (Customers/Vessels) or Catalog list endpoint exists. |
+
+  The exact whitelist lives in `app/operations/page.tsx::buildSanitizedQuery()` — a single sanitized `URLSearchParams`, shared by the backend fetch and by `PaginationControls`' generated links, so a page-2 link can never carry a param (or an invalid value) the fetch itself wouldn't also send.
+- `catalog.ServiceType` still has **no `module` field** — a module filter specifically remains unimplemented, since that concept doesn't exist in the backend yet (unrelated to the customer/vessel/service_type/flag deferral above, which is an id-resolution problem, not a missing-concept problem).
 - Module/type indicator: `service_type_name` and `flag_name`, exactly as returned by `ServiceRequestListSerializer` — no invented grouping.
 - Module-specific detail extends the shared `ServiceRequest` detail page as future tabs/sections — not built in this slice, not designed here (per standing constraint: no Crew/Survey/Flag/PM domain content).
 

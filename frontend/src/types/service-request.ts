@@ -22,6 +22,14 @@ export type ServiceRequestStatus =
   | "waiting_external"
   | "completed";
 
+/**
+ * Matches `ServiceRequestViewSet.ordering_fields` in
+ * backend/service_requests/views.py exactly — the closed set of fields
+ * the backend actually accepts in `?ordering=`. A `-` prefix reverses
+ * direction (DRF's own convention, not a frontend addition).
+ */
+export type ServiceRequestOrderingField = "created_at" | "updated_at" | "reference_code" | "status";
+
 /** GET /api/service-requests/ — one array item. */
 export interface ServiceRequestListItem {
   id: number;
