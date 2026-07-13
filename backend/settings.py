@@ -30,6 +30,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.staticfiles",
     "rest_framework",
+    # Provides DjangoFilterBackend (ServiceRequest status/customer/vessel/
+    # service_type/flag filtering) — required in INSTALLED_APPS so its
+    # browsable-API filter-form templates are discoverable, per
+    # django-filter's own setup docs.
+    "django_filters",
 
     # events must use the dotted AppConfig path so EventsConfig.ready()
     # fires and registers every domain's listeners exactly once — see

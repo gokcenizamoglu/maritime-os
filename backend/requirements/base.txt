@@ -4,3 +4,9 @@
 # is speculative.
 Django==6.0.2
 djangorestframework==3.16.1
+# ServiceRequest status/customer/vessel/service_type/flag filtering
+# (DjangoFilterBackend) — see service_requests/views.py. Pinned to the
+# version already present in this environment, matching this file's
+# existing convention of pinning to what's actually installed/verified,
+# not the latest available release.
+django-filter==25.2

@@ -1,5 +1,7 @@
+from config.pagination import StandardResultsPagination
 from config.permissions import IsSameTenantObject, IsTenantMember
-from rest_framework import viewsets, status
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -23,9 +25,39 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
     REVIEW FIX (#8): added IsSameTenantObject as an explicit object-level
     backstop behind the tenant-filtered get_queryset() below — see
     config.permissions for why both matter.
+
+    LIST HARDENING (pagination/filter/search/ordering sprint): `list()`
+    is the only action DRF actually routes through `filter_backends` /
+    `pagination_class` (ListModelMixin calls `self.filter_queryset(...)`
+    and `self.paginate_queryset(...)` itself) — `retrieve`, `create`, and
+    the `transition` action below are untouched by any of this. The
+    LIST/DETAIL SERIALIZER SHAPES ARE DELIBERATELY UNCHANGED in this
+    sprint (see ServiceRequestListSerializer / ServiceRequestDetailSerializer
+    — not touched here) to avoid a second breaking change landing on the
+    frontend at the same time as pagination; that inconsistency is a
+    separate, already-identified follow-up.
+
+    Every filter/search/order operates on TOP of the tenant-scoped
+    queryset from get_queryset() below — DjangoFilterBackend/SearchFilter/
+    OrderingFilter narrow an already-tenant-filtered queryset, they never
+    replace it, so no query parameter can widen results beyond the
+    caller's own tenant. `filterset_fields` deliberately never includes
+    `tenant` itself.
     """
     permission_classes = [IsTenantMember, IsSameTenantObject]
     http_method_names = ["get", "post", "patch"]  # no raw PUT/DELETE — deletion is a domain decision, not a Phase 1 feature
+    pagination_class = StandardResultsPagination
+
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["status", "customer", "vessel", "service_type", "flag"]
+    search_fields = [
+        "reference_code", "customer__name", "vessel__name",
+        "service_type__name", "flag__name",
+    ]
+    ordering_fields = ["created_at", "updated_at", "reference_code", "status"]
+    # No explicit `ordering` default here: ServiceRequest.Meta.ordering
+    # (-created_at) already applies whenever the client doesn't pass
+    # ?ordering=, so restating it would just be a second source of truth.
 
     def get_queryset(self):
         # Tenant scoping enforced here, never trusted from the client.

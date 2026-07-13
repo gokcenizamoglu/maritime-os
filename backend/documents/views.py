@@ -1,5 +1,7 @@
 from catalog.models import DocumentType
+from config.pagination import StandardResultsPagination
 from config.permissions import IsSameTenantObject, IsTenantMember
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from documents import services as document_services
 from documents.models import Document, UploadLink
@@ -32,11 +34,33 @@ class DocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsTenantMember, IsSameTenantObject]
     serializer_class = DocumentSerializer
     http_method_names = ["get", "post"]
+    pagination_class = StandardResultsPagination
 
     def get_queryset(self):
-        return Document.objects.filter(
+        queryset = Document.objects.filter(
             tenant=self.request.user.tenant
         ).select_related("document_type", "predicted_document_type", "service_request")
+
+        service_request_id = self.request.query_params.get("service_request")
+        if service_request_id is not None:
+            # Deliberately narrower than ServiceRequestViewSet's filtering
+            # (that one's a full DjangoFilterBackend setup) — this sprint
+            # only asked for ONE Document filter. Validates the referenced
+            # ServiceRequest exists AND belongs to this tenant, using the
+            # SAME convention as create() below (get_object_or_404 against
+            # a tenant-filtered queryset) — an out-of-tenant or nonexistent
+            # id 404s rather than silently returning an empty list, which
+            # would look identical to "this case genuinely has no
+            # documents" instead of "you don't have access to that case."
+            if not service_request_id.isdigit():
+                raise Http404("Invalid service_request id.")
+            get_object_or_404(
+                ServiceRequest.objects.filter(tenant=self.request.user.tenant),
+                pk=service_request_id,
+            )
+            queryset = queryset.filter(service_request_id=service_request_id)
+
+        return queryset
 
     def create(self, request, *args, **kwargs):
         serializer = InternalUploadSerializer(data=request.data)
