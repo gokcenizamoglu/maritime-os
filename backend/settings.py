@@ -92,6 +92,34 @@ DATABASES = {
 
 AUTH_USER_MODEL = "users.User"
 
+# Explicit (was previously DRF's implicit default of
+# [SessionAuthentication, BasicAuthentication]). BasicAuthentication is
+# REMOVED, not merely unused: it accepts a username/password on every
+# single request with no rate limiting or lockout, which is redundant
+# attack surface now that a real login flow exists (see
+# users/views.py). Nothing in this codebase's tests or runtime depends
+# on it — the DRF/Django test client authenticates via
+# `force_authenticate()` / `client.login()`, neither of which goes
+# through HTTP Basic at all. See docs/AUTHENTICATION_ARCHITECTURE.md
+# for the full reasoning.
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+}
+
+# The CSRF secret lives inside the Django session rather than a
+# separate `csrftoken` cookie. This is the correct fit for the
+# browser -> Next.js BFF -> Django architecture: the browser never
+# talks to Django directly, so there is no browser-side reader of a
+# separate CSRF cookie to begin with — Next.js's server relays the
+# CSRF token value (obtained from GET /api/auth/csrf/ or the login
+# response) as an `X-CSRFToken` header on its own outgoing requests,
+# validated against the secret carried in the relayed session cookie.
+# Requires SessionMiddleware before CsrfViewMiddleware in MIDDLEWARE
+# above — already true, verified before enabling this.
+CSRF_USE_SESSIONS = True
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
