@@ -197,7 +197,7 @@ class MeTests(APITestCase):
         response = client.get(ME_URL)
         self.assertEqual(
             set(response.data.keys()),
-            {"id", "username", "first_name", "last_name", "role", "tenant"},
+            {"id", "username", "first_name", "last_name", "role", "tenant", "roles", "capabilities"},
         )
         self.assertNotIn("password", response.data)
 

@@ -1,3 +1,4 @@
+from authorization.permissions import HasCapability
 from config.permissions import IsSameTenantObject, IsTenantMember
 from events.types import RULE_TRIGGERABLE_EVENT_TYPES
 from rest_framework import viewsets
@@ -19,7 +20,16 @@ class RuleViewSet(viewsets.ModelViewSet):
     the request body contains.
     """
     serializer_class = RuleSerializer
-    permission_classes = [IsTenantMember, IsSameTenantObject]
+    permission_classes = [IsTenantMember, IsSameTenantObject, HasCapability]
+    capability_map = {
+        "list": "rule.view",
+        "retrieve": "rule.view",
+        "rule_metadata": "rule.view",
+        "create": "rule.create",
+        "update": "rule.update",
+        "partial_update": "rule.update",
+        "destroy": "rule.delete",
+    }
 
     def get_queryset(self):
         return Rule.objects.filter(tenant=self.request.user.tenant)

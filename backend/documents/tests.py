@@ -3,6 +3,7 @@ Tests for the `service_request` query-param filter added to
 DocumentViewSet this sprint (see that class's get_queryset()). Does not
 touch upload/classify behavior — those are unmodified.
 """
+from authorization.test_helpers import grant_all_capabilities
 from catalog.models import Flag, ServiceType
 from customers.models import Customer
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -23,6 +24,7 @@ class DocumentServiceRequestFilterTests(APITestCase):
         cls.tenant = Tenant.objects.create(name="Liva Marine", slug="liva-marine-docs")
         cls.other_tenant = Tenant.objects.create(name="Other Co", slug="other-co-docs")
         cls.user = User.objects.create(username="ops-user", tenant=cls.tenant)
+        grant_all_capabilities(cls.user)
 
         customer = Customer.objects.create(tenant=cls.tenant, name="Acme Shipping")
         vessel = Vessel.objects.create(tenant=cls.tenant, customer=customer, name="MV Test", imo_number="1234567")

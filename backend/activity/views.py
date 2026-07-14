@@ -1,6 +1,7 @@
 from activity.models import ActivityLog
 from activity.services import build_timeline_entry
-from config.permissions import IsSameTenantObject, IsTenantMember
+from authorization.permissions import HasCapability
+from config.permissions import IsTenantMember
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -12,7 +13,8 @@ class ServiceRequestTimelineView(APIView):
     `APIView`, not a `ModelViewSet` — this is a query over an existing
     log, not a resource with its own CRUD lifecycle.
     """
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, HasCapability]
+    required_capability = "activity.view"
 
     def get(self, request, service_request_id):
         from django.shortcuts import get_object_or_404

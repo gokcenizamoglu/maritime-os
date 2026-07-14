@@ -1,3 +1,4 @@
+from authorization.permissions import HasCapability
 from checklists.models import ChecklistItem
 from checklists.serializers import ChecklistItemSerializer
 from config.permissions import IsSameTenantObject, IsTenantMember
@@ -18,7 +19,8 @@ class ChecklistItemViewSet(viewsets.ReadOnlyModelViewSet):
     config.permissions.
     """
     serializer_class = ChecklistItemSerializer
-    permission_classes = [IsTenantMember, IsSameTenantObject]
+    permission_classes = [IsTenantMember, IsSameTenantObject, HasCapability]
+    required_capability = "checklist.view"
 
     def get_queryset(self):
         qs = ChecklistItem.objects.filter(

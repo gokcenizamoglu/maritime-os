@@ -1,3 +1,4 @@
+from authorization.permissions import HasCapability
 from config.pagination import StandardResultsPagination
 from config.permissions import IsSameTenantObject, IsTenantMember
 from django_filters.rest_framework import DjangoFilterBackend
@@ -44,7 +45,14 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
     caller's own tenant. `filterset_fields` deliberately never includes
     `tenant` itself.
     """
-    permission_classes = [IsTenantMember, IsSameTenantObject]
+    permission_classes = [IsTenantMember, IsSameTenantObject, HasCapability]
+    capability_map = {
+        "list": "service_request.view",
+        "retrieve": "service_request.view",
+        "create": "service_request.create",
+        "partial_update": "service_request.update",
+        "transition": "service_request.update",
+    }
     http_method_names = ["get", "post", "patch"]  # no raw PUT/DELETE — deletion is a domain decision, not a Phase 1 feature
     pagination_class = StandardResultsPagination
 

@@ -1,3 +1,4 @@
+from authorization.permissions import HasCapability
 from config.permissions import IsSameTenantObject, IsTenantMember
 from rest_framework import status as http_status, viewsets
 from rest_framework.decorators import action
@@ -17,7 +18,12 @@ class WorkflowStepInstanceViewSet(viewsets.ReadOnlyModelViewSet):
     never expose a generic PATCH here.
     """
     serializer_class = WorkflowStepInstanceSerializer
-    permission_classes = [IsTenantMember, IsSameTenantObject]
+    permission_classes = [IsTenantMember, IsSameTenantObject, HasCapability]
+    capability_map = {
+        "list": "workflow.view",
+        "retrieve": "workflow.view",
+        "transition": "workflow.advance",
+    }
 
     def get_queryset(self):
         qs = WorkflowStepInstance.objects.filter(

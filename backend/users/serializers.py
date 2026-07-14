@@ -3,6 +3,7 @@ Serializers for the internal authentication endpoints (users/views.py).
 Kept in `users` — the app that already owns the User model — rather
 than a new `auth` app, per this sprint's explicit scope.
 """
+from authorization.services import user_effective_capabilities
 from rest_framework import serializers
 from users.models import User
 
@@ -53,6 +54,16 @@ class AuthenticatedUserSerializer(serializers.Serializer):
         explicitly here is clearer than a SerializerMethodField for a
         one-field transform used in exactly one place.
         """
+        roles = []
+        if user.tenant_id:
+            roles = list(
+                user.role_assignments
+                .filter(role__is_active=True)
+                .values_list("role__id", "role__name")
+            )
+
+        capabilities = sorted(user_effective_capabilities(user))
+
         return {
             "id": user.id,
             "username": user.username,
@@ -60,4 +71,6 @@ class AuthenticatedUserSerializer(serializers.Serializer):
             "last_name": user.last_name,
             "role": user.role,
             "tenant": {"id": user.tenant_id, "name": user.tenant.name} if user.tenant_id else None,
+            "roles": [{"id": r[0], "name": r[1]} for r in roles],
+            "capabilities": capabilities,
         }

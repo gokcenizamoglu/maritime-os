@@ -16,6 +16,7 @@ faithfully reflect the engine's vocabulary," which a hardcoded
 duplicate list would defeat: it could drift from the real constants and
 still pass.
 """
+from authorization.test_helpers import grant_all_capabilities
 from django.test import SimpleTestCase
 from events.types import RULE_TRIGGERABLE_EVENT_TYPES
 from rest_framework import status
@@ -37,6 +38,7 @@ class RuleMetadataEndpointTests(APITestCase):
     def setUpTestData(cls):
         cls.tenant = Tenant.objects.create(name="Liva Marine", slug="liva-marine")
         cls.user = User.objects.create(username="ops-user", tenant=cls.tenant)
+        grant_all_capabilities(cls.user)
 
     def test_authenticated_tenant_member_gets_200(self):
         self.client.force_authenticate(user=self.user)

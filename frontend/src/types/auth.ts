@@ -8,11 +8,19 @@ export interface AuthenticatedUserTenant {
   name: string;
 }
 
+export interface AuthenticatedUserRole {
+  id: number;
+  name: string;
+}
+
 export interface AuthenticatedUser {
   id: number;
   username: string;
   first_name: string;
   last_name: string;
+  /** @deprecated Temporary field from User.role — use `capabilities` instead. */
   role: string;
   tenant: AuthenticatedUserTenant | null;
+  roles: AuthenticatedUserRole[];
+  capabilities: string[];
 }

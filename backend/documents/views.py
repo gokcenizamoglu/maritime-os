@@ -1,3 +1,4 @@
+from authorization.permissions import HasCapability
 from catalog.models import DocumentType
 from config.pagination import StandardResultsPagination
 from config.permissions import IsSameTenantObject, IsTenantMember
@@ -31,7 +32,13 @@ class DocumentViewSet(viewsets.ModelViewSet):
     document, regardless of entry point, now goes through
     `documents.services.upload_document()`.
     """
-    permission_classes = [IsTenantMember, IsSameTenantObject]
+    permission_classes = [IsTenantMember, IsSameTenantObject, HasCapability]
+    capability_map = {
+        "list": "document.view",
+        "retrieve": "document.view",
+        "create": "document.create",
+        "classify": "document.classify",
+    }
     serializer_class = DocumentSerializer
     http_method_names = ["get", "post"]
     pagination_class = StandardResultsPagination

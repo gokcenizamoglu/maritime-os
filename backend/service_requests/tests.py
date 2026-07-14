@@ -7,6 +7,7 @@ Deliberately does NOT re-test: the list/detail serializer field shapes
 flows (state_machine's own concern), or reference_code generation
 (service_requests/models.py::ServiceRequestSequence's own concern).
 """
+from authorization.test_helpers import grant_all_capabilities
 from catalog.models import Flag, ServiceType
 from customers.models import Customer
 from rest_framework import status
@@ -25,6 +26,7 @@ class ServiceRequestQueryTests(APITestCase):
         cls.tenant = Tenant.objects.create(name="Liva Marine", slug="liva-marine")
         cls.other_tenant = Tenant.objects.create(name="Other Co", slug="other-co")
         cls.user = User.objects.create(username="ops-user", tenant=cls.tenant)
+        grant_all_capabilities(cls.user)
 
         cls.customer_a = Customer.objects.create(tenant=cls.tenant, name="Acme Shipping")
         cls.customer_b = Customer.objects.create(tenant=cls.tenant, name="Beta Maritime")
