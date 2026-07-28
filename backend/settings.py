@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     "events.apps.EventsConfig",
 
     # Existing domain apps, unmodified.
-    "tenants",
+    "tenants.apps.TenantsConfig",
     "users",
     "customers",
     "vessels",

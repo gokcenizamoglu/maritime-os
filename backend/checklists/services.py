@@ -14,20 +14,54 @@ exactly one place that defines what "complete" means.
 from checklists.models import ChecklistItem, ChecklistTemplate
 from django.db import transaction
 from service_requests.models import ServiceRequest
+from workflow.models import OperationTemplateVersion
+
+
+class ChecklistDefinitionValidationError(ValueError):
+    pass
+
+
+@transaction.atomic
+def save_checklist_definition(*, tenant, data, instance=None):
+    from checklists.models import ChecklistTemplate
+
+    version = data.get(
+        "operation_template_version", instance.operation_template_version if instance else None,
+    )
+    if version is None:
+        raise ChecklistDefinitionValidationError("operation_template_version is required.")
+    if version.operation_template.service_offering.tenant_id != tenant.id:
+        raise ChecklistDefinitionValidationError("Version does not belong to the acting tenant.")
+    if version.status != OperationTemplateVersion.Status.DRAFT:
+        raise ChecklistDefinitionValidationError("Only draft versions can be edited.")
+    if instance is None:
+        return ChecklistTemplate.objects.create(**data)
+    if instance.operation_template_version_id != version.id:
+        raise ChecklistDefinitionValidationError("A checklist definition cannot move between versions.")
+    for key, value in data.items():
+        setattr(instance, key, value)
+    instance.save()
+    return instance
 
 
 def generate_checklist_for_service_request(service_request: ServiceRequest) -> list[ChecklistItem]:
     """
-    Instantiate ChecklistItems from the ChecklistTemplates matching this
-    ServiceRequest's (service_type, flag) pair. Idempotent: calling this
-    twice does not create duplicate items, thanks to the unique
-    constraint on (service_request, document_type) plus get_or_create.
+    Instantiate ChecklistItems from the immutable published version linked
+    to the ServiceRequest. The legacy service/flag lookup remains only for
+    historical rows that have not yet been backfilled; new requests cannot
+    enter that path.
     """
-    templates = ChecklistTemplate.objects.filter(
-        service_type=service_request.service_type,
-        flag=service_request.flag,
-        is_active=True,
-    ).select_related("document_type")
+    if service_request.operation_template_version_id:
+        templates = ChecklistTemplate.objects.filter(
+            operation_template_version_id=service_request.operation_template_version_id,
+            is_active=True,
+        ).select_related("document_type")
+    else:
+        templates = ChecklistTemplate.objects.filter(
+            service_type=service_request.service_type,
+            flag=service_request.flag,
+            is_active=True,
+        ).select_related("document_type")
 
     created_items = []
     with transaction.atomic():
@@ -35,8 +69,15 @@ def generate_checklist_for_service_request(service_request: ServiceRequest) -> l
             item, _ = ChecklistItem.objects.get_or_create(
                 service_request=service_request,
                 document_type=template.document_type,
-                defaults={"required_count": template.min_count},
+                defaults={
+                    "required_count": template.min_count,
+                    "source_template": template,
+                },
             )
+            if item.source_template_id != template.id:
+                item.source_template = template
+                item.required_count = template.min_count
+                item.save(update_fields=["source_template", "required_count", "updated_at"])
             created_items.append(item)
     return created_items
 

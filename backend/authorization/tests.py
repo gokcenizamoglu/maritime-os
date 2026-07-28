@@ -275,6 +275,17 @@ class DefaultProvisioningTests(APITestCase):
         self.assertNotIn("rule.update", ops_caps)
         self.assertNotIn("rule.delete", ops_caps)
         self.assertIn("service_request.create", ops_caps)
+        self.assertNotIn("tenant_catalog.manage", ops_caps)
+        self.assertNotIn("operation_template.manage", ops_caps)
+        self.assertNotIn("operation_template.publish", ops_caps)
+
+    def test_new_tenant_is_provisioned_with_safe_default_roles(self):
+        tenant = Tenant.objects.create(name="Automatic Provisioning", slug="automatic-provisioning")
+        self.assertEqual(TenantRole.objects.filter(tenant=tenant).count(), 3)
+        admin_caps = set(TenantRole.objects.get(tenant=tenant, name="Tenant Admin").capabilities.values_list("code", flat=True))
+        operations_caps = set(TenantRole.objects.get(tenant=tenant, name="Operations").capabilities.values_list("code", flat=True))
+        self.assertIn("operation_template.publish", admin_caps)
+        self.assertNotIn("operation_template.publish", operations_caps)
 
 
 # ---------------------------------------------------------------------------

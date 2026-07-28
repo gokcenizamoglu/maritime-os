@@ -12,7 +12,8 @@ class ServiceRequest(TenantScopedModel):
     Cardinality (deliberate, per domain rules):
       - belongs to exactly ONE Vessel (FK, not M2M)
       - belongs to exactly ONE Customer
-      - has exactly ONE ServiceType and ONE Flag
+      - has exactly ONE ServiceType; Flag is required, optional, or not
+        applicable according to ServiceType.flag_scope
       - a Vessel may have MANY open ServiceRequests concurrently — this
         model enforces nothing that would prevent that (no uniqueness
         constraint on vessel, no "is this vessel busy" check).
@@ -43,6 +44,17 @@ class ServiceRequest(TenantScopedModel):
     )
     flag = models.ForeignKey(
         "catalog.Flag", on_delete=models.PROTECT, related_name="service_requests",
+        null=True, blank=True,
+    )
+    service_offering = models.ForeignKey(
+        "catalog.TenantServiceOffering", on_delete=models.PROTECT,
+        related_name="service_requests", null=True, blank=True,
+        help_text="Tenant service catalog entry used to open this operation.",
+    )
+    operation_template_version = models.ForeignKey(
+        "workflow.OperationTemplateVersion", on_delete=models.PROTECT,
+        related_name="service_requests", null=True, blank=True,
+        help_text="Immutable published process recipe used for instantiation.",
     )
     status = models.CharField(max_length=30, choices=Status.choices, default=Status.DRAFT)
     created_by = models.ForeignKey(
@@ -62,7 +74,7 @@ class ServiceRequest(TenantScopedModel):
         ]
 
     def __str__(self):
-        return f"{self.reference_code}: {self.service_type} / {self.flag} ({self.vessel})"
+        return f"{self.reference_code}: {self.service_type} / {self.flag or 'unflagged'} ({self.vessel})"
 
 
 class ServiceRequestSequence(models.Model):

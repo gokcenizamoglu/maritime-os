@@ -41,8 +41,16 @@ def activate_workflow_step(*, service_request: ServiceRequest, action_config: di
     from workflow.services import update_step_status
 
     step_code = _require(action_config, "step_code")
+    step_filter = {"step_template__code": step_code}
+    if service_request.operation_template_version_id:
+        step_filter["step_template__operation_template_version_id"] = service_request.operation_template_version_id
+    else:
+        step_filter.update({
+            "step_template__operation_template_version__isnull": True,
+            "step_template__service_type_id": service_request.service_type_id,
+        })
     try:
-        step_instance = service_request.workflow_steps.get(step_template__code=step_code)
+        step_instance = service_request.workflow_steps.get(**step_filter)
     except WorkflowStepInstance.DoesNotExist:
         raise ActionConfigError(
             f"ServiceRequest {service_request.reference_code} has no workflow step "

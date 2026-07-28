@@ -31,7 +31,7 @@ Three system-default roles are provisioned for each tenant:
 | Role           | Capabilities                                |
 |----------------|---------------------------------------------|
 | Tenant Admin   | All active capabilities                     |
-| Operations     | All except rule management (create/update/delete) |
+| Operations     | Daily operations plus catalog/template view; no catalog/template management or publication |
 | Viewer         | All `.view` capabilities only               |
 
 Provisioning: `authorization.services.provision_default_roles(tenant)`.
@@ -69,7 +69,7 @@ on top of it.
 |----------------------------------|----------------------|-------------------------|
 | ServiceRequestViewSet            | list, retrieve       | service_request.view    |
 | ServiceRequestViewSet            | create               | service_request.create  |
-| ServiceRequestViewSet            | partial_update       | service_request.update  |
+| ServiceRequestViewSet            | no generic update    | no capability; immutable after create |
 | ServiceRequestViewSet            | transition           | service_request.update  |
 | DocumentViewSet                  | list, retrieve       | document.view           |
 | DocumentViewSet                  | create               | document.create         |
@@ -175,21 +175,26 @@ The data migration maps existing values:
 2. Remove `role` field from `AuthenticatedUserSerializer.from_user()`.
 3. Remove `User.role` field and generate a schema migration.
 
-## Future: OperationTemplate and Module Catalog
+## Deferred: Module Entitlement
 
-When `OperationTemplate` is implemented (Sprint 2+), it will interact
-with authorization in two ways:
+Module entitlement remains deferred. OperationTemplate authorization itself
+is implemented separately by the capabilities documented below:
 
-1. **Module entitlement**: `TenantModuleEntitlement` controls which
+1. **Module entitlement**: a future `TenantModuleEntitlement` controls which
    modules a tenant has access to. `OperationTemplate.module` references
    the module catalog.
-2. **Operation-level permissions**: `OperationTemplate` may define which
+2. **Operation-level permissions**: the current API uses stable capability
+   codes for template management; a future template may define which
    capabilities or roles are required to create/manage operations of that
    type, using the same `Capability` rows defined here.
 
 The capability registry will grow as new endpoints and modules are
 added — each capability is added in the same sprint as the endpoint it
 gates.
+
+The OperationTemplate capability surface described above is now implemented;
+the older section is retained as historical context for module entitlements,
+which remain deferred.
 
 ## Why Role Names Are Never Used for Authorization
 
@@ -199,3 +204,24 @@ decisions always go through capability codes, never role name comparison.
 This is enforced architecturally: `HasCapability` checks capability
 codes via the policy layer, and there is no `HasRole("name")` permission
 class.
+
+## Tenant catalog and operation-template capabilities
+
+The tenant-specific catalog and process configuration uses the same
+capability system. It does not introduce a second authorization mechanism.
+
+| Surface | Capabilities |
+|---|---|
+| Flag relationships and service offerings | `tenant_catalog.view`, `tenant_catalog.manage` |
+| Operation templates and draft definitions | `operation_template.view`, `operation_template.manage` |
+| Version publish, clone, retire, and archive | `operation_template.publish` |
+
+Every queryset is tenant-scoped through the offering relationship, and
+`IsSameTenantObject` also understands indirect ownership through
+`service_offering` and `operation_template_version`. Service-layer checks
+remain authoritative for cross-tenant references and draft/published rules.
+Default role provisioning is wired to new tenant creation. `Tenant Admin`
+receives `tenant_catalog.manage`, `operation_template.manage`, and
+`operation_template.publish`; `Operations` receives none of these three by
+default. Existing Operations assignments are normalized by the authorization
+migration.

@@ -24,10 +24,13 @@ class IsTenantMember(BasePermission):
     message = "This account is not associated with a tenant."
 
     def has_permission(self, request, view):
+        tenant = getattr(request.user, "tenant", None)
         return bool(
             request.user
             and request.user.is_authenticated
             and getattr(request.user, "tenant_id", None)
+            and tenant is not None
+            and tenant.is_active
         )
 
 
@@ -48,6 +51,12 @@ class IsSameTenantObject(BasePermission):
     def has_object_permission(self, request, view, obj):
         if hasattr(obj, "tenant_id"):
             return obj.tenant_id == request.user.tenant_id
+        if hasattr(obj, "service_offering_id"):
+            return obj.service_offering.tenant_id == request.user.tenant_id
+        if hasattr(obj, "operation_template_id"):
+            return obj.operation_template.service_offering.tenant_id == request.user.tenant_id
+        if hasattr(obj, "operation_template_version_id"):
+            return obj.operation_template_version.operation_template.service_offering.tenant_id == request.user.tenant_id
         if hasattr(obj, "service_request_id"):
             return obj.service_request.tenant_id == request.user.tenant_id
         return False

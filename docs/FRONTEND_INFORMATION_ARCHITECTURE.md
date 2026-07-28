@@ -31,21 +31,22 @@ Only navigation backed by a real, existing backend endpoint is visible:
 | Document Center | `/documents` | Placeholder in this slice — see §5 |
 | Automation → Rules | `/automation/rules`, `/automation/rules/[id]` | `GET /api/rules/`, `GET /api/rules/metadata/` — real |
 
-**Explicitly not shown:** Customers, Vessels, Organizations, Administration,
-Workflow Templates. Confirmed by reading the backend: `config/urls.py`
-registers exactly five routers (`service-requests`, `documents`,
-`checklist-items`, `workflow-steps`, `rules`) plus the timeline endpoint and
-the public upload endpoint. There is no `CustomerViewSet`, `VesselViewSet`,
-`OrganizationViewSet`, `UserViewSet`, or catalog/entitlement endpoint
-anywhere in the codebase, and no `WorkflowStepTemplate` endpoint (only
-`WorkflowStepInstance` is exposed, read-only). These sidebar items will be
-added when — and only when — their backend endpoints exist.
+**Explicitly not shown:** Customers, Vessels, Organizations, and
+Administration master-data screens. The backend now has the tenant catalog
+and operation-template API, but this frontend slice does not add their
+administration screens. Workflow instance screens remain read-only.
 
 **Frontend navigation visibility is never treated as authorization.**
 Hiding a sidebar item is a UX/scope decision, not a security boundary. The
 backend's `IsTenantMember`/`IsSameTenantObject` permission classes remain
 the only real authority over what data is accessible (verified in
 `backend/config/permissions.py`).
+
+Current backend update: tenant catalog and operation-template endpoints now
+exist under `flag-relationships`, `service-offerings`,
+`operation-templates`, `operation-template-versions`,
+`checklist-templates`, and `workflow-step-templates`. They are API-ready but
+their administration screens remain outside this frontend slice.
 
 ## 3. Route hierarchy — DECIDED for Phase 1, rest deferred
 
@@ -99,10 +100,11 @@ All routes not listed above (Directory, Administration, customer portal) are
 | Operations detail — Activity | Real data from `GET /api/service-requests/{id}/timeline/` |
 | Operations detail — Checklist | Real data from `GET /api/checklist-items/?service_request={id}` (verified: this filter is genuinely supported server-side) |
 | Operations detail — Workflow | Real data from `GET /api/workflow-steps/?service_request={id}` (verified: this filter is genuinely supported server-side) |
-| Operations detail — Documents | **Not connected in this slice** — `DocumentViewSet` has no `service_request` query-param filter; fetching and client-filtering the tenant's entire document list would not be a safe/correct data flow. Shown as an honest "not connected" state, not mock data. |
+| Operations detail — Documents | Real data from `GET /api/documents/?service_request={id}`; the detail page renders the tenant-scoped filtered document list. |
 | Document Center | Restrained placeholder |
 | Automation → Rules list/detail | Restrained placeholder in this slice (the real `/api/rules/` and `/api/rules/metadata/` endpoints exist and work, but building the Rules UI itself is out of scope for this implementation slice — see product decision ordering) |
-| Customers / Vessels / Organizations / Administration / Workflow Templates | Deferred — no backend endpoint |
+| Customers / Vessels / Organizations / Administration | Deferred — no frontend screen |
+| Tenant Catalog / Operation Templates | Backend/API ready; frontend administration screen deferred |
 | Customer portal | Deferred — undecided hosting model |
 
 ## 7. Navigation behavior — DECIDED
@@ -124,3 +126,16 @@ All routes not listed above (Directory, Administration, customer portal) are
 - Whether `ServiceType` should formally gain a `module` field (blocks any future module filter on Operations).
 - Priority/build order for the missing backend endpoints (Customers, Vessels, Organizations, Users, Catalog).
 - Customer portal hosting model (same app vs. separate app).
+
+## 10. Catalog and document detail update
+
+The backend now exposes tenant-scoped flag relationships, service offerings,
+operation templates, and version management under the catalog/process API.
+There is intentionally no broad management UI in this slice because the
+frontend has no existing operation-create form or template administration
+surface.
+
+The Operations detail Documents tab is now connected to
+`GET /api/documents/?service_request={id}`. The old section 6 placeholder
+description predates that backend filter and should be read as superseded by
+this current behavior.

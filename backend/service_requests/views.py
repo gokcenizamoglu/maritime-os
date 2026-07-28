@@ -15,6 +15,7 @@ from service_requests.serializers import (
     TransitionStatusSerializer,
 )
 from service_requests.state_machine import InvalidTransitionError, TransitionGuardError
+from service_requests.services import CrossTenantReferenceError, InvalidServiceRequestConfiguration
 
 
 class ServiceRequestViewSet(viewsets.ModelViewSet):
@@ -50,14 +51,16 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         "list": "service_request.view",
         "retrieve": "service_request.view",
         "create": "service_request.create",
-        "partial_update": "service_request.update",
         "transition": "service_request.update",
     }
-    http_method_names = ["get", "post", "patch"]  # no raw PUT/DELETE — deletion is a domain decision, not a Phase 1 feature
     pagination_class = StandardResultsPagination
 
+    # ServiceRequest fields are immutable after creation. Status changes
+    # must use the transition action so domain guards and events run.
+    http_method_names = ["get", "post"]
+
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["status", "customer", "vessel", "service_type", "flag"]
+    filterset_fields = ["status", "customer", "vessel", "service_type", "flag", "service_offering"]
     search_fields = [
         "reference_code", "customer__name", "vessel__name",
         "service_type__name", "flag__name",
@@ -71,7 +74,10 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         # Tenant scoping enforced here, never trusted from the client.
         return ServiceRequest.objects.filter(
             tenant=self.request.user.tenant
-        ).select_related("customer", "vessel", "service_type", "flag")
+        ).select_related(
+            "customer", "vessel", "service_type", "flag", "service_offering",
+            "operation_template_version__operation_template",
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -83,11 +89,14 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        service_request = service_request_services.create_service_request(
-            tenant=request.user.tenant,
-            created_by=request.user,
-            **serializer.validated_data,
-        )
+        try:
+            service_request = service_request_services.create_service_request(
+                tenant=request.user.tenant,
+                created_by=request.user,
+                **serializer.validated_data,
+            )
+        except (CrossTenantReferenceError, InvalidServiceRequestConfiguration) as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         output = ServiceRequestDetailSerializer(service_request)
         return Response(output.data, status=status.HTTP_201_CREATED)
 

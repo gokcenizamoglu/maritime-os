@@ -8,12 +8,20 @@ class ServiceRequestListSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     service_type_name = serializers.CharField(source="service_type.name", read_only=True)
     flag_name = serializers.CharField(source="flag.name", read_only=True)
+    service_offering_name = serializers.CharField(source="service_offering.display_name", read_only=True, allow_null=True)
+    operation_template_code = serializers.CharField(
+        source="operation_template_version.operation_template.code", read_only=True, allow_null=True,
+    )
+    operation_template_version_number = serializers.IntegerField(
+        source="operation_template_version.version_number", read_only=True, allow_null=True,
+    )
 
     class Meta:
         model = ServiceRequest
         fields = [
             "id", "reference_code", "status", "vessel_name", "customer_name",
-            "service_type_name", "flag_name", "created_at",
+            "service_type_name", "flag_name", "service_offering_name",
+            "operation_template_code", "operation_template_version_number", "created_at",
         ]
 
 
@@ -63,17 +71,46 @@ class ServiceRequestCreateSerializer(serializers.ModelSerializer):
 
 class ServiceRequestDetailSerializer(serializers.ModelSerializer):
     checklist_progress = serializers.SerializerMethodField()
+    service_offering_summary = serializers.SerializerMethodField()
+    operation_template_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceRequest
         fields = [
             "id", "reference_code", "status", "customer", "vessel", "service_type",
             "flag", "created_at", "updated_at", "checklist_progress",
+            "service_offering", "operation_template_version",
+            "service_offering_summary", "operation_template_summary",
         ]
+        read_only_fields = fields
 
     def get_checklist_progress(self, obj):
         progress = get_checklist_progress(obj)
         return {"total": progress["total"], "complete": progress["complete"], "percent": progress["percent"]}
+
+    def get_service_offering_summary(self, obj):
+        offering = obj.service_offering
+        if not offering:
+            return None
+        return {
+            "id": offering.id,
+            "display_name": offering.display_name or offering.service_type.name,
+            "service_type": offering.service_type.code,
+            "flag": offering.flag.code if offering.flag else None,
+            "status": offering.status,
+        }
+
+    def get_operation_template_summary(self, obj):
+        version = obj.operation_template_version
+        if not version:
+            return None
+        return {
+            "id": version.operation_template_id,
+            "code": version.operation_template.code,
+            "name": version.operation_template.name,
+            "version_number": version.version_number,
+            "status": version.status,
+        }
 
 
 class TransitionStatusSerializer(serializers.Serializer):

@@ -43,8 +43,17 @@ def _service_request_facts(service_request) -> dict[str, Any]:
     context of exactly one ServiceRequest."""
     return {
         "service_type": service_request.service_type.code,
-        "flag": service_request.flag.code,
+        "flag": service_request.flag.code if service_request.flag else None,
         "service_request_status": service_request.status,
+        "service_offering_id": service_request.service_offering_id,
+        "operation_template_code": (
+            service_request.operation_template_version.operation_template.code
+            if service_request.operation_template_version_id else None
+        ),
+        "operation_template_version": (
+            service_request.operation_template_version.version_number
+            if service_request.operation_template_version_id else None
+        ),
     }
 
 
@@ -125,7 +134,10 @@ FACT_RESOLVERS = {
 }
 
 
-_COMMON_FACT_FIELDS = ["service_type", "flag", "service_request_status"]
+_COMMON_FACT_FIELDS = [
+    "service_type", "flag", "service_request_status", "service_offering_id",
+    "operation_template_code", "operation_template_version",
+]
 
 # Field names each resolver above puts into its facts dict — used ONLY
 # by the read-only /api/rules/metadata/ endpoint (rules/views.py) so a

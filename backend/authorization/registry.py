@@ -30,10 +30,32 @@ def _r(code: str, label: str, description: str, category: str, module_code: str)
     )
 
 
+# Tenant catalog / process configuration
+_r("tenant_catalog.view", "View Tenant Catalog",
+   "View tenant flag relationships and service offerings.",
+   "tenant_catalog", "core")
+
+_r("tenant_catalog.manage", "Manage Tenant Catalog",
+   "Create and update tenant flag relationships and service offerings.",
+   "tenant_catalog", "core")
+
+_r("operation_template.view", "View Operation Templates",
+   "View tenant operation templates, versions, and definitions.",
+   "operation_templates", "core")
+
+_r("operation_template.manage", "Manage Operation Templates",
+   "Create and edit operation templates and draft definitions.",
+   "operation_templates", "core")
+
+_r("operation_template.publish", "Publish Operation Templates",
+   "Publish, clone, and retire operation template versions.",
+   "operation_templates", "core")
+
+
 # ---------------------------------------------------------------------------
 # Service Requests — ServiceRequestViewSet
-# list/retrieve, create, partial_update + transition
-# No delete (http_method_names excludes DELETE)
+# list/retrieve, create + transition
+# No generic update/delete (http_method_names excludes PATCH/PUT/DELETE)
 # ---------------------------------------------------------------------------
 _r("service_request.view", "View Service Requests",
    "List and view service request details.",
@@ -44,7 +66,7 @@ _r("service_request.create", "Create Service Requests",
    "service_requests", "core")
 
 _r("service_request.update", "Update Service Requests",
-   "Edit service request fields and trigger state transitions.",
+   "Trigger validated ServiceRequest state transitions.",
    "service_requests", "core")
 
 # ---------------------------------------------------------------------------
@@ -120,8 +142,16 @@ VIEW_ONLY_CAPABILITIES = frozenset(
 
 ALL_CAPABILITIES = frozenset(CAPABILITY_REGISTRY.keys())
 
-# Ops: everything except rule and automation management
+# Operations can run cases and inspect configuration. Catalog/template
+# ownership and publication stay with Tenant Admin (or an explicitly
+# assigned custom role), so a daily operator cannot change the recipe used
+# by future work.
 OPS_CAPABILITIES = frozenset(
     code for code in CAPABILITY_REGISTRY
     if not code.startswith("rule.")
+    and code not in {
+        "tenant_catalog.manage",
+        "operation_template.manage",
+        "operation_template.publish",
+    }
 )

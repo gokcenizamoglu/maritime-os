@@ -14,7 +14,7 @@ kind of organization is actually capable of holding it.
 from django.db import transaction
 from events.dispatcher import emit
 from events.types import ORGANIZATION_ATTACHED_TO_SERVICE_REQUEST
-from organizations.models import Organization, ServiceRequestOrganization
+from organizations.models import Organization, ServiceRequestOrganization, TenantFlagRelationship
 from service_requests.models import ServiceRequest
 
 # Maps a ServiceRequestOrganization role to the OrganizationType code(s)
@@ -34,6 +34,45 @@ class RoleOrganizationTypeMismatchError(Exception):
 
 class CrossTenantReferenceError(Exception):
     pass
+
+
+class FlagRelationshipValidationError(ValueError):
+    pass
+
+
+def validate_flag_relationship(*, tenant, flag, registry_organization=None, partner_organization=None, status=None):
+    for organization in (registry_organization, partner_organization):
+        if organization is not None and organization.tenant_id != tenant.id:
+            raise CrossTenantReferenceError("Organization does not belong to the acting tenant.")
+    if status == TenantFlagRelationship.Status.ACTIVE and not flag.is_active:
+        raise FlagRelationshipValidationError("The selected flag is inactive.")
+
+
+@transaction.atomic
+def save_flag_relationship(*, tenant, data, instance=None) -> TenantFlagRelationship:
+    validate_flag_relationship(
+        tenant=tenant,
+        flag=data.get("flag", instance.flag if instance else None),
+        registry_organization=data.get(
+            "registry_organization", instance.registry_organization if instance else None,
+        ),
+        partner_organization=data.get(
+            "partner_organization", instance.partner_organization if instance else None,
+        ),
+        status=data.get("status", instance.status if instance else TenantFlagRelationship.Status.INACTIVE),
+    )
+    if instance is None:
+        return TenantFlagRelationship.objects.create(tenant=tenant, **data)
+    if instance.tenant_id != tenant.id:
+        raise CrossTenantReferenceError("Flag relationship does not belong to the acting tenant.")
+    if "flag" in data and data["flag"].id != instance.flag_id and instance.service_offerings.exists():
+        raise FlagRelationshipValidationError(
+            "A relationship referenced by an offering cannot change its flag."
+        )
+    for key, value in data.items():
+        setattr(instance, key, value)
+    instance.save()
+    return instance
 
 
 @transaction.atomic

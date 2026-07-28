@@ -115,7 +115,18 @@ def _log_service_request_created(event):
         actor_type="user",
         actor_user=event.payload.get("actor_user"),
         summary=f"Case {service_request.reference_code} created "
-                f"({service_request.service_type.name} / {service_request.flag.name})",
+                f"({service_request.service_type.name} / {service_request.flag.name if service_request.flag else 'unflagged'})",
+        metadata={
+            "service_offering_id": service_request.service_offering_id,
+            "operation_template_version": (
+                service_request.operation_template_version.version_number
+                if service_request.operation_template_version_id else None
+            ),
+            "operation_template_code": (
+                service_request.operation_template_version.operation_template.code
+                if service_request.operation_template_version_id else None
+            ),
+        },
     )
 
 

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { WorkflowStepStatusBadge } from "@/components/workflow/WorkflowStepStatusBadge";
 import type { ApiResult } from "@/lib/api/result";
 import type { ChecklistItem } from "@/types/checklist";
+import type { DocumentRecord } from "@/types/document";
 import type { ServiceRequestDetail } from "@/types/service-request";
 import type { TimelineEntry } from "@/types/timeline";
 import type { WorkflowStepInstance } from "@/types/workflow";
@@ -20,6 +21,7 @@ interface ServiceRequestTabsProps {
   timeline: ApiResult<TimelineEntry[]>;
   checklist: ApiResult<ChecklistItem[]>;
   workflow: ApiResult<WorkflowStepInstance[]>;
+  documents: ApiResult<DocumentRecord[]>;
 }
 
 /**
@@ -28,7 +30,7 @@ interface ServiceRequestTabsProps {
  * page and passed down as props, so switching tabs never triggers a
  * network request. See docs/FRONTEND_INFORMATION_ARCHITECTURE.md §5.
  */
-export function ServiceRequestTabs({ detail, timeline, checklist, workflow }: ServiceRequestTabsProps) {
+export function ServiceRequestTabs({ detail, timeline, checklist, workflow, documents }: ServiceRequestTabsProps) {
   const [active, setActive] = useState<TabName>("Overview");
 
   return (
@@ -54,7 +56,7 @@ export function ServiceRequestTabs({ detail, timeline, checklist, workflow }: Se
 
       <div className="pt-4">
         {active === "Overview" && <OverviewTab detail={detail} />}
-        {active === "Documents" && <DocumentsTab />}
+        {active === "Documents" && <DocumentsTab result={documents} />}
         {active === "Checklist" && <ChecklistTab result={checklist} />}
         {active === "Workflow" && <WorkflowTab result={workflow} />}
         {active === "Activity" && <ActivityTab result={timeline} />}
@@ -96,23 +98,37 @@ function OverviewTab({ detail }: { detail: ServiceRequestDetail }) {
       </Field>
       <Field label="Customer">#{detail.customer}</Field>
       <Field label="Vessel">#{detail.vessel}</Field>
-      <Field label="Service Type">#{detail.service_type}</Field>
-      <Field label="Flag">#{detail.flag}</Field>
-      <p className="col-span-full text-xs text-zinc-500">
-        Customer, vessel, service type, and flag are shown by ID — the detail endpoint doesn&apos;t
-        yet return their names (only the list endpoint does). See
-        docs/FRONTEND_INFORMATION_ARCHITECTURE.md.
-      </p>
+      <Field label="Service Type">{detail.service_offering_summary?.service_type ?? `#${detail.service_type}`}</Field>
+      <Field label="Flag">
+        {detail.service_offering_summary?.flag ?? (detail.flag ? `#${detail.flag}` : "Not applicable")}
+      </Field>
+      <Field label="Offering">{detail.service_offering_summary?.display_name ?? "Legacy operation"}</Field>
+      <Field label="Process version">
+        {detail.operation_template_summary
+          ? `${detail.operation_template_summary.code} v${detail.operation_template_summary.version_number}`
+          : "Legacy template"}
+      </Field>
     </dl>
   );
 }
 
-function DocumentsTab() {
+function DocumentsTab({ result }: { result: ApiResult<DocumentRecord[]> }) {
+  if (!result.ok) return <ApiErrorState result={result} />;
+  if (result.data.length === 0) return <EmptyState title="No documents" />;
   return (
-    <EmptyState
-      title="Not connected in this slice"
-      description="The documents endpoint doesn't yet support filtering by service request, so this tab isn't wired to real data yet."
-    />
+    <ul className="flex flex-col gap-2">
+      {result.data.map((document) => (
+        <li key={document.id} className="flex items-center justify-between rounded-md border border-black/[.08] px-3 py-2 text-sm">
+          <span>
+            <span className="block text-zinc-900">{document.original_filename}</span>
+            <span className="text-xs text-zinc-500">{document.document_type_name ?? "Unclassified"}</span>
+          </span>
+          <Badge tone={document.is_superseded ? "neutral" : document.status === "validated" ? "success" : "neutral"}>
+            {document.is_superseded ? "Superseded" : document.status}
+          </Badge>
+        </li>
+      ))}
+    </ul>
   );
 }
 

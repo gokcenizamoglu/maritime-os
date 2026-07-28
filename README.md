@@ -28,6 +28,8 @@ following a strict service-layer / event-driven architecture. See
 [`docs/RULES_ENGINE.md`](docs/RULES_ENGINE.md), and
 [`docs/PHASE_1_IMPLEMENTATION_NOTES.md`](docs/PHASE_1_IMPLEMENTATION_NOTES.md)
 for the design history and rationale.
+Tenant catalog and versioned operation-template behavior is documented in
+[`docs/TENANT_CATALOG_AND_OPERATION_TEMPLATES.md`](docs/TENANT_CATALOG_AND_OPERATION_TEMPLATES.md).
 
 ### Dependencies
 
@@ -63,9 +65,11 @@ Dev-only setup: SQLite, `DEBUG=True`. Not configured for production.
 ## Frontend
 
 Next.js (App Router, TypeScript, Tailwind CSS) app under
-[`frontend/`](frontend/). No UI component library, state management
-library, or authentication yet — see [`frontend/README.md`](frontend/README.md)
-for its internal structure.
+[`frontend/`](frontend/). Authentication is implemented through the Django
+session API and the Next.js server-side relay; the Operations list/detail
+flow is connected to the backend. The tenant catalog and operation-template
+management surface is currently backend/API-first; see
+[`frontend/README.md`](frontend/README.md) for the current UI boundary.
 
 ### Install
 

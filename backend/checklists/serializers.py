@@ -1,5 +1,7 @@
-from checklists.models import ChecklistItem
+from catalog.models import DocumentType
+from checklists.models import ChecklistItem, ChecklistTemplate
 from rest_framework import serializers
+from workflow.models import OperationTemplateVersion
 
 
 class ChecklistItemSerializer(serializers.ModelSerializer):
@@ -27,3 +29,22 @@ class ChecklistItemSerializer(serializers.ModelSerializer):
             status__in=["classified", "validated"],
             superseded_by_set__isnull=True,
         ).count()
+
+
+class ChecklistTemplateDefinitionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChecklistTemplate
+        fields = [
+            "id", "operation_template_version", "code", "document_type",
+            "min_count", "is_active",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        tenant_id = getattr(getattr(request, "user", None), "tenant_id", None)
+        if tenant_id:
+            self.fields["operation_template_version"].queryset = OperationTemplateVersion.objects.filter(
+                operation_template__service_offering__tenant_id=tenant_id,
+            )
+        self.fields["document_type"].queryset = DocumentType.objects.filter(is_active=True)

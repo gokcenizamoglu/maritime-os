@@ -1,12 +1,19 @@
 from activity.views import ServiceRequestTimelineView
-from checklists.views import ChecklistItemViewSet
+from catalog.views import TenantServiceOfferingViewSet
+from checklists.views import ChecklistItemViewSet, ChecklistTemplateDefinitionViewSet
 from documents.views import DocumentViewSet, public_upload_view
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from organizations.views import TenantFlagRelationshipViewSet
 from rules.views import RuleViewSet
 from service_requests.views import ServiceRequestViewSet
 from users.views import CsrfBootstrapView, LoginView, LogoutView, MeView
-from workflow.views import WorkflowStepInstanceViewSet
+from workflow.views import (
+    OperationTemplateVersionViewSet,
+    OperationTemplateViewSet,
+    WorkflowStepInstanceViewSet,
+    WorkflowStepTemplateDefinitionViewSet,
+)
 
 router = DefaultRouter()
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
@@ -14,6 +21,12 @@ router.register("documents", DocumentViewSet, basename="document")
 router.register("checklist-items", ChecklistItemViewSet, basename="checklist-item")
 router.register("workflow-steps", WorkflowStepInstanceViewSet, basename="workflow-step")
 router.register("rules", RuleViewSet, basename="rule")
+router.register("flag-relationships", TenantFlagRelationshipViewSet, basename="flag-relationship")
+router.register("service-offerings", TenantServiceOfferingViewSet, basename="service-offering")
+router.register("operation-templates", OperationTemplateViewSet, basename="operation-template")
+router.register("operation-template-versions", OperationTemplateVersionViewSet, basename="operation-template-version")
+router.register("checklist-templates", ChecklistTemplateDefinitionViewSet, basename="checklist-template")
+router.register("workflow-step-templates", WorkflowStepTemplateDefinitionViewSet, basename="workflow-step-template")
 
 urlpatterns = [
     path("api/", include(router.urls)),

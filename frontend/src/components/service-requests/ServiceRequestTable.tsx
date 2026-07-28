@@ -42,7 +42,7 @@ export function ServiceRequestTable({ items }: { items: ServiceRequestListItem[]
               <td className="px-3 py-2 text-zinc-700">{item.customer_name}</td>
               <td className="px-3 py-2 text-zinc-700">{item.vessel_name}</td>
               <td className="px-3 py-2 text-zinc-700">{item.service_type_name}</td>
-              <td className="px-3 py-2 text-zinc-700">{item.flag_name}</td>
+              <td className="px-3 py-2 text-zinc-700">{item.flag_name ?? "Not applicable"}</td>
               <td className="px-3 py-2 text-zinc-500">{formatDate(item.created_at)}</td>
             </tr>
           ))}

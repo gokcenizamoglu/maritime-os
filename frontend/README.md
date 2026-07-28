@@ -27,7 +27,7 @@ src/
 ├── app/         App Router routes, layout, global styles
 ├── components/  Shared, reusable UI building blocks
 ├── features/    Domain feature modules (empty for now — see features/README.md)
-├── lib/api/     API base URL config + typed URL helper (no auth/fetch wrapper yet)
+├── lib/api/     Server-side authenticated API relay and typed fetch helper
 ├── types/       Shared TypeScript types
 └── config/      App-wide constants
 ```

@@ -13,6 +13,10 @@ deliberate Phase 2 feature (tenant-level overrides/extensions), not the
 Phase 1 default.
 """
 from django.db import models
+from django.db.models import Q
+from django.utils import timezone
+
+from config.base_models import TenantScopedModel
 
 
 class Flag(models.Model):
@@ -30,10 +34,22 @@ class Flag(models.Model):
 
 class ServiceType(models.Model):
     """A category of service the consultancy performs."""
+
+    class FlagScope(models.TextChoices):
+        REQUIRED = "required", "Flag required"
+        OPTIONAL = "optional", "Flag optional"
+        NOT_APPLICABLE = "not_applicable", "Flag not applicable"
+
     name = models.CharField(max_length=150, unique=True)
     code = models.SlugField(max_length=50, unique=True)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    flag_scope = models.CharField(
+        max_length=20,
+        choices=FlagScope.choices,
+        default=FlagScope.REQUIRED,
+        help_text="Whether this service is offered within a flag context.",
+    )
 
     class Meta:
         ordering = ["name"]
@@ -70,3 +86,68 @@ class OrganizationType(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class TenantServiceOffering(TenantScopedModel):
+    """A tenant's commercial/operational ability to accept a service.
+
+    This is intentionally separate from OperationTemplate: an offering may
+    exist before a process recipe is configured, and may have multiple
+    process variants. ``flag`` is a denormalized catalog reference used for
+    reporting/filtering; when ``flag_relationship`` is present it must point
+    to the same flag and is the source of the tenant's relationship validity.
+    """
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        INACTIVE = "inactive", "Inactive"
+        ARCHIVED = "archived", "Archived"
+
+    service_type = models.ForeignKey(
+        "catalog.ServiceType", on_delete=models.PROTECT, related_name="tenant_offerings",
+    )
+    flag = models.ForeignKey(
+        "catalog.Flag", on_delete=models.PROTECT, related_name="tenant_offerings",
+        null=True, blank=True,
+    )
+    flag_relationship = models.ForeignKey(
+        "organizations.TenantFlagRelationship", on_delete=models.PROTECT,
+        related_name="service_offerings", null=True, blank=True,
+    )
+    display_name = models.CharField(max_length=255, blank=True)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.INACTIVE)
+    accepts_new_requests = models.BooleanField(default=False)
+    valid_from = models.DateField(null=True, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["service_type__name", "flag__name", "display_name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "service_type"],
+                condition=Q(flag__isnull=True, flag_relationship__isnull=True),
+                name="unique_unflagged_offering_per_tenant_service",
+            ),
+            models.UniqueConstraint(
+                fields=["tenant", "service_type", "flag_relationship"],
+                condition=Q(flag_relationship__isnull=False),
+                name="unique_offering_per_tenant_service_relationship",
+            ),
+        ]
+
+    def __str__(self):
+        return self.display_name or f"{self.service_type} ({self.flag or 'unflagged'})"
+
+    def is_available_for_new_requests(self, *, today=None) -> bool:
+        today = today or timezone.localdate()
+        return (
+            self.status == self.Status.ACTIVE
+            and self.accepts_new_requests
+            and (self.valid_from is None or self.valid_from <= today)
+            and (self.valid_until is None or self.valid_until >= today)
+            and (
+                self.flag_relationship_id is None
+                or self.flag_relationship.is_available_for_new_requests(today=today)
+            )
+        )

@@ -38,7 +38,10 @@ export interface ServiceRequestListItem {
   vessel_name: string;
   customer_name: string;
   service_type_name: string;
-  flag_name: string;
+  flag_name: string | null;
+  service_offering_name: string | null;
+  operation_template_code: string | null;
+  operation_template_version_number: number | null;
   created_at: string;
 }
 
@@ -60,7 +63,23 @@ export interface ServiceRequestDetail {
   /** Raw FK id — see module docstring. Not a display name. */
   service_type: number;
   /** Raw FK id — see module docstring. Not a display name. */
-  flag: number;
+  flag: number | null;
+  service_offering: number | null;
+  operation_template_version: number | null;
+  service_offering_summary: {
+    id: number;
+    display_name: string;
+    service_type: string;
+    flag: string | null;
+    status: string;
+  } | null;
+  operation_template_summary: {
+    id: number;
+    code: string;
+    name: string;
+    version_number: number;
+    status: string;
+  } | null;
   created_at: string;
   updated_at: string;
   checklist_progress: ChecklistProgress;
