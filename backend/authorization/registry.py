@@ -53,6 +53,38 @@ _r("operation_template.publish", "Publish Operation Templates",
 
 
 # ---------------------------------------------------------------------------
+# Customers — CustomerViewSet
+# list/retrieve, create, partial_update (no delete — see requirements)
+# ---------------------------------------------------------------------------
+_r("customer.view", "View Customers",
+   "List and view customer details.",
+   "customers", "core")
+
+_r("customer.create", "Create Customers",
+   "Create new customer records.",
+   "customers", "core")
+
+_r("customer.update", "Update Customers",
+   "Edit existing customer records.",
+   "customers", "core")
+
+# ---------------------------------------------------------------------------
+# Vessels — VesselViewSet
+# list/retrieve, create, partial_update (no delete — see requirements)
+# ---------------------------------------------------------------------------
+_r("vessel.view", "View Vessels",
+   "List and view vessel details.",
+   "vessels", "core")
+
+_r("vessel.create", "Create Vessels",
+   "Create new vessel records.",
+   "vessels", "core")
+
+_r("vessel.update", "Update Vessels",
+   "Edit existing vessel records.",
+   "vessels", "core")
+
+# ---------------------------------------------------------------------------
 # Service Requests — ServiceRequestViewSet
 # list/retrieve, create + transition
 # No generic update/delete (http_method_names excludes PATCH/PUT/DELETE)

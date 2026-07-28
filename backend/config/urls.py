@@ -1,6 +1,7 @@
 from activity.views import ServiceRequestTimelineView
 from catalog.views import TenantServiceOfferingViewSet
 from checklists.views import ChecklistItemViewSet, ChecklistTemplateDefinitionViewSet
+from customers.views import CustomerViewSet
 from documents.views import DocumentViewSet, public_upload_view
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
@@ -8,6 +9,7 @@ from organizations.views import TenantFlagRelationshipViewSet
 from rules.views import RuleViewSet
 from service_requests.views import ServiceRequestViewSet
 from users.views import CsrfBootstrapView, LoginView, LogoutView, MeView
+from vessels.views import VesselViewSet
 from workflow.views import (
     OperationTemplateVersionViewSet,
     OperationTemplateViewSet,
@@ -16,6 +18,8 @@ from workflow.views import (
 )
 
 router = DefaultRouter()
+router.register("customers", CustomerViewSet, basename="customer")
+router.register("vessels", VesselViewSet, basename="vessel")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
 router.register("documents", DocumentViewSet, basename="document")
 router.register("checklist-items", ChecklistItemViewSet, basename="checklist-item")

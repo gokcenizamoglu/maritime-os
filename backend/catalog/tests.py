@@ -9,8 +9,10 @@ from rest_framework.test import APIClient
 from authorization.models import TenantRole
 from authorization.services import assign_role, provision_default_roles
 from catalog.models import DocumentType, Flag, ServiceType, TenantServiceOffering
-from checklists.models import ChecklistTemplate
-from organizations.models import TenantFlagRelationship
+from checklists.models import ChecklistItem, ChecklistTemplate
+from organizations.models import Organization, TenantFlagRelationship
+from catalog.models import OrganizationType
+from service_requests.models import ServiceRequest
 from service_requests.services import (
     CrossTenantReferenceError,
     InvalidServiceRequestConfiguration,
@@ -236,6 +238,190 @@ class TenantCatalogAndOperationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([row["id"] for row in response.data], [self.offering.id])
         self.assertEqual(self.client.get(f"/api/service-offerings/{other_offering.id}/").status_code, 404)
+
+    def test_available_offering_response_exposes_partner_and_published_template_metadata(self):
+        organization_type = OrganizationType.objects.create(name="Partner", code="partner")
+        partner = Organization.objects.create(
+            tenant=self.tenant, organization_type=organization_type, name="Blue Partner",
+        )
+        partner_relationship = TenantFlagRelationship.objects.create(
+            tenant=self.tenant, flag=self.flag,
+            relationship_type=TenantFlagRelationship.RelationshipType.PARTNER,
+            partner_organization=partner,
+            status=TenantFlagRelationship.Status.ACTIVE,
+        )
+        partner_offering = TenantServiceOffering.objects.create(
+            tenant=self.tenant, service_type=self.service_type, flag=self.flag,
+            flag_relationship=partner_relationship, display_name="Partner Owner Change",
+            status=TenantServiceOffering.Status.ACTIVE, accepts_new_requests=True,
+        )
+        partner_template = OperationTemplate.objects.create(
+            service_offering=partner_offering, name="Partner Standard", code="partner-standard",
+            is_default=True,
+        )
+        partner_version = create_draft_version(
+            tenant=self.tenant, operation_template=partner_template,
+        )
+        publish_version(tenant=self.tenant, version=partner_version, published_by=self.user)
+        draft_template = OperationTemplate.objects.create(
+            service_offering=partner_offering, name="Draft Variant", code="draft-variant",
+        )
+
+        response = self.client.get("/api/service-offerings/available/")
+
+        self.assertEqual(response.status_code, 200)
+        rows = {row["id"]: row for row in response.data}
+        self.assertIn(self.offering.id, rows)
+        self.assertIn(partner_offering.id, rows)
+        self.assertIn("Blue Partner", rows[partner_offering.id]["flag_relationship_label"])
+        variants = {variant["code"]: variant for variant in rows[partner_offering.id]["template_variants"]}
+        self.assertEqual(variants["partner-standard"]["published_version_id"], partner_version.id)
+        self.assertEqual(variants["partner-standard"]["published_version_number"], 1)
+        self.assertNotIn("draft-variant", variants)
+
+        self.relationship.status = TenantFlagRelationship.Status.INACTIVE
+        self.relationship.save(update_fields=["status", "updated_at"])
+        response = self.client.get("/api/service-offerings/available/")
+        self.assertNotIn(self.offering.id, {row["id"] for row in response.data})
+
+    def test_service_request_api_accepts_offering_and_returns_version_summary(self):
+        response = self.client.post(
+            "/api/service-requests/",
+            {
+                "customer": self.customer.id,
+                "vessel": self.vessel.id,
+                "service_offering": self.offering.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["service_offering"], self.offering.id)
+        self.assertEqual(response.data["operation_template_summary"]["version_number"], 1)
+
+    def test_service_request_api_uses_explicit_template_and_creates_instances(self):
+        response = self.client.post(
+            "/api/service-requests/",
+            {
+                "customer": self.customer.id,
+                "vessel": self.vessel.id,
+                "service_offering": self.offering.id,
+                "operation_template": self.template.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        service_request = ServiceRequest.objects.get(pk=response.data["id"])
+        self.assertEqual(service_request.customer_id, self.customer.id)
+        self.assertEqual(service_request.vessel_id, self.vessel.id)
+        self.assertEqual(service_request.service_offering_id, self.offering.id)
+        self.assertEqual(service_request.operation_template_version_id, self.version.id)
+        self.assertGreater(service_request.checklist_items.count(), 0)
+        self.assertGreater(service_request.workflow_steps.count(), 0)
+
+    def test_api_rejects_template_from_another_offering(self):
+        other_relationship = TenantFlagRelationship.objects.create(
+            tenant=self.tenant, flag=self.flag,
+            relationship_type=TenantFlagRelationship.RelationshipType.PARTNER,
+            status=TenantFlagRelationship.Status.ACTIVE,
+        )
+        other_offering = TenantServiceOffering.objects.create(
+            tenant=self.tenant, service_type=self.service_type, flag=self.flag,
+            flag_relationship=other_relationship, display_name="Other Offering",
+            status=TenantServiceOffering.Status.ACTIVE, accepts_new_requests=True,
+        )
+        other_template = OperationTemplate.objects.create(
+            service_offering=other_offering, name="Other Template", code="other-template",
+            is_default=True,
+        )
+        response = self.client.post(
+            "/api/service-requests/",
+            {
+                "customer": self.customer.id,
+                "vessel": self.vessel.id,
+                "service_offering": self.offering.id,
+                "operation_template": other_template.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(ServiceRequest.objects.count(), 0)
+
+    def test_api_rejects_unpublished_explicit_template(self):
+        draft_template = OperationTemplate.objects.create(
+            service_offering=self.offering, name="Draft Only", code="draft-only",
+        )
+        response = self.client.post(
+            "/api/service-requests/",
+            {
+                "customer": self.customer.id,
+                "vessel": self.vessel.id,
+                "service_offering": self.offering.id,
+                "operation_template": draft_template.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(ServiceRequest.objects.count(), 0)
+
+    def test_api_rejects_cross_tenant_customer_id(self):
+        response = self.client.post(
+            "/api/service-requests/",
+            {
+                "customer": self.other_customer.id,
+                "vessel": self.other_vessel.id,
+                "service_offering": self.offering.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_api_rejects_cross_tenant_vessel_without_creating_instances(self):
+        before_requests = ServiceRequest.objects.count()
+        before_checklists = ChecklistItem.objects.count()
+        before_workflow_steps = WorkflowStepInstance.objects.count()
+
+        response = self.client.post(
+            "/api/service-requests/",
+            {
+                "customer": self.customer.id,
+                "vessel": self.other_vessel.id,
+                "service_offering": self.offering.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("vessel", response.data)
+        self.assertIn("does not exist", str(response.data["vessel"][0]))
+        self.assertEqual(ServiceRequest.objects.count(), before_requests)
+        self.assertEqual(ChecklistItem.objects.count(), before_checklists)
+        self.assertEqual(WorkflowStepInstance.objects.count(), before_workflow_steps)
+
+    def test_api_rejects_mismatched_vessel_customer(self):
+        other_customer = self._customer(self.tenant, "Customer C")
+        other_vessel = self._vessel(self.tenant, other_customer, "MV C", "IMO-C")
+        response = self.client.post(
+            "/api/service-requests/",
+            {
+                "customer": self.customer.id,
+                "vessel": other_vessel.id,
+                "service_offering": self.offering.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_api_rejects_create_without_offering(self):
+        response = self.client.post(
+            "/api/service-requests/",
+            {
+                "customer": self.customer.id,
+                "vessel": self.vessel.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_published_retired_and_archived_orm_write_paths_are_blocked(self):
         with self.assertRaises(ValidationError):

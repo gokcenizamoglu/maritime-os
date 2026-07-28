@@ -1,6 +1,8 @@
 from checklists.services import get_checklist_progress
 from rest_framework import serializers
+from catalog.models import TenantServiceOffering
 from service_requests.models import ServiceRequest
+from workflow.models import OperationTemplate
 
 
 class ServiceRequestListSerializer(serializers.ModelSerializer):
@@ -28,7 +30,19 @@ class ServiceRequestListSerializer(serializers.ModelSerializer):
 class ServiceRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceRequest
-        fields = ["customer", "vessel", "service_type", "flag"]
+        fields = [
+            "customer", "vessel", "service_type", "flag",
+            "service_offering", "operation_template",
+        ]
+        extra_kwargs = {
+            "service_type": {"required": False, "allow_null": True},
+            "flag": {"required": False, "allow_null": True},
+            "service_offering": {"required": False, "allow_null": True},
+        }
+
+    operation_template = serializers.PrimaryKeyRelatedField(
+        queryset=OperationTemplate.objects.none(), required=False, allow_null=True, write_only=True,
+    )
 
     def __init__(self, *args, **kwargs):
         """
@@ -54,6 +68,12 @@ class ServiceRequestCreateSerializer(serializers.ModelSerializer):
             from vessels.models import Vessel
             self.fields["customer"].queryset = Customer.objects.filter(tenant_id=request.user.tenant_id)
             self.fields["vessel"].queryset = Vessel.objects.filter(tenant_id=request.user.tenant_id)
+            self.fields["service_offering"].queryset = TenantServiceOffering.objects.filter(
+                tenant_id=request.user.tenant_id,
+            )
+            self.fields["operation_template"].queryset = OperationTemplate.objects.filter(
+                service_offering__tenant_id=request.user.tenant_id,
+            )
 
     def validate(self, attrs):
         # Domain invariant check at the API boundary: a ServiceRequest's
@@ -66,6 +86,19 @@ class ServiceRequestCreateSerializer(serializers.ModelSerializer):
         # service layer — see service_requests.services.create_service_request.)
         if attrs["vessel"].customer_id != attrs["customer"].id:
             raise serializers.ValidationError("Vessel does not belong to the given customer.")
+        if not attrs.get("service_offering") and not attrs.get("service_type"):
+            raise serializers.ValidationError(
+                {"service_offering": "Select a tenant service offering for a new request."}
+            )
+        if attrs.get("operation_template") and not attrs.get("service_offering"):
+            raise serializers.ValidationError(
+                {"service_offering": "An explicit operation template requires service_offering."}
+            )
+        offering = attrs.get("service_offering")
+        if offering and attrs.get("service_type") and offering.service_type_id != attrs["service_type"].id:
+            raise serializers.ValidationError("service_type does not match service_offering.")
+        if offering and attrs.get("flag") and offering.flag_id != attrs["flag"].id:
+            raise serializers.ValidationError("flag does not match service_offering.")
         return attrs
 
 

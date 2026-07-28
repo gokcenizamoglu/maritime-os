@@ -143,16 +143,27 @@ def _resolve_offering(*, tenant, service_offering, service_type, flag) -> Tenant
     return offering
 
 
-def _resolve_template(*, offering: TenantServiceOffering) -> tuple[OperationTemplate, OperationTemplateVersion]:
-    template = (
-        OperationTemplate.objects
-        .filter(service_offering=offering, is_active=True, is_default=True)
-        .first()
-    )
-    if template is None:
-        raise InvalidServiceRequestConfiguration(
-            "No active default operation template is configured for this offering."
+def _resolve_template(*, offering: TenantServiceOffering, operation_template) -> tuple[OperationTemplate, OperationTemplateVersion]:
+    if operation_template is not None:
+        template = (
+            OperationTemplate.objects
+            .select_related("service_offering")
+            .get(pk=operation_template.pk)
         )
+        if template.service_offering_id != offering.id:
+            raise CrossTenantReferenceError("Operation template does not belong to the selected offering.")
+        if not template.is_active:
+            raise InvalidServiceRequestConfiguration("The selected operation template is inactive.")
+    else:
+        template = (
+            OperationTemplate.objects
+            .filter(service_offering=offering, is_active=True, is_default=True)
+            .first()
+        )
+        if template is None:
+            raise InvalidServiceRequestConfiguration(
+                "No active default operation template is configured for this offering."
+            )
 
     version = (
         OperationTemplateVersion.objects
@@ -170,7 +181,7 @@ def _resolve_template(*, offering: TenantServiceOffering) -> tuple[OperationTemp
 @transaction.atomic
 def create_service_request(
     *, tenant, customer, vessel, service_type=None, flag=None,
-    service_offering=None, created_by,
+    service_offering=None, operation_template=None, created_by,
 ) -> ServiceRequest:
     """
     Create a ServiceRequest and immediately instantiate its checklist and
@@ -201,7 +212,10 @@ def create_service_request(
         service_type=service_type,
         flag=flag,
     )
-    _, version = _resolve_template(offering=offering)
+    _, version = _resolve_template(
+        offering=offering,
+        operation_template=operation_template,
+    )
 
     service_request = ServiceRequest.objects.create(
         tenant=tenant,

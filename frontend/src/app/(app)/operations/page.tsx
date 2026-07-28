@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ApiErrorState } from "@/components/feedback/ApiErrorState";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { OperationsFilters } from "@/components/service-requests/OperationsFilters";
@@ -5,6 +6,7 @@ import { PaginationControls } from "@/components/service-requests/PaginationCont
 import { ServiceRequestTable } from "@/components/service-requests/ServiceRequestTable";
 import { apiFetch } from "@/lib/api/client";
 import type { PaginatedResponse } from "@/types/api";
+import type { AuthenticatedUser } from "@/types/auth";
 import type { ServiceRequestListItem, ServiceRequestStatus } from "@/types/service-request";
 
 /**
@@ -107,7 +109,12 @@ export default async function OperationsPage({ searchParams }: OperationsPagePro
   const queryString = query.toString();
   const path = queryString ? `service-requests/?${queryString}` : "service-requests/";
 
-  const result = await apiFetch<PaginatedResponse<ServiceRequestListItem>>(path);
+  const [result, userResult] = await Promise.all([
+    apiFetch<PaginatedResponse<ServiceRequestListItem>>(path),
+    apiFetch<AuthenticatedUser>("auth/me/"),
+  ]);
+
+  const canCreate = userResult.ok && userResult.data.capabilities.includes("service_request.create");
 
   const status = query.get("status") ?? undefined;
   const search = query.get("search") ?? undefined;
@@ -116,9 +123,19 @@ export default async function OperationsPage({ searchParams }: OperationsPagePro
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="border-b border-black/[.08] pb-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Operations</h1>
-        <p className="mt-1 text-sm text-zinc-600">All service requests across every module.</p>
+      <div className="flex items-center justify-between border-b border-black/[.08] pb-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Operations</h1>
+          <p className="mt-1 text-sm text-zinc-600">All service requests across every module.</p>
+        </div>
+        {canCreate && (
+          <Link
+            href="/operations/new"
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
+          >
+            New Operation
+          </Link>
+        )}
       </div>
 
       <OperationsFilters status={status} search={search} ordering={ordering} />
