@@ -1,5 +1,6 @@
 from config.base_models import TimeStampedModel, TenantScopedModel
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -58,6 +59,16 @@ class TenantRole(TenantScopedModel):
     def __str__(self):
         return f"{self.name} ({self.tenant})"
 
+    def clean(self):
+        super().clean()
+        if (
+            self.pk
+            and self.user_assignments.exclude(user__tenant_id=self.tenant_id).exists()
+        ):
+            raise ValidationError(
+                {"tenant": "A role with user assignments cannot move to another tenant."}
+            )
+
 
 class RoleCapability(TimeStampedModel):
     """
@@ -111,3 +122,10 @@ class UserRoleAssignment(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} -> {self.role.name}"
+
+    def clean(self):
+        super().clean()
+        if self.user_id and self.role_id and self.user.tenant_id != self.role.tenant_id:
+            raise ValidationError(
+                {"role": "The assigned role must belong to the user's tenant."}
+            )

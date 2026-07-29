@@ -1,4 +1,5 @@
 from config.base_models import TenantScopedModel
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -74,6 +75,37 @@ class TenantFlagRelationship(TenantScopedModel):
     def __str__(self):
         return f"{self.tenant} / {self.flag} ({self.relationship_type})"
 
+    def clean(self):
+        super().clean()
+        errors = {}
+        if (
+            self.tenant_id
+            and self.registry_organization_id
+            and self.registry_organization.tenant_id != self.tenant_id
+        ):
+            errors["registry_organization"] = (
+                "The registry organization must belong to the relationship tenant."
+            )
+        if (
+            self.tenant_id
+            and self.partner_organization_id
+            and self.partner_organization.tenant_id != self.tenant_id
+        ):
+            errors["partner_organization"] = (
+                "The partner organization must belong to the relationship tenant."
+            )
+        if self.pk:
+            original = type(self).objects.get(pk=self.pk)
+            if (
+                (original.tenant_id != self.tenant_id or original.flag_id != self.flag_id)
+                and self.service_offerings.exists()
+            ):
+                errors["tenant"] = (
+                    "A flag relationship used by an offering cannot change tenant or flag."
+                )
+        if errors:
+            raise ValidationError(errors)
+
     def is_available_for_new_requests(self, *, today=None) -> bool:
         today = today or timezone.localdate()
         return (
@@ -103,6 +135,22 @@ class Organization(TenantScopedModel):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        if not self.pk:
+            return
+        original = type(self).objects.get(pk=self.pk)
+        has_references = (
+            self.registry_relationships.exists()
+            or self.partner_relationships.exists()
+            or self.service_request_links.exists()
+            or self.assigned_workflow_steps.exists()
+        )
+        if original.tenant_id != self.tenant_id and has_references:
+            raise ValidationError(
+                {"tenant": "A referenced organization cannot move to another tenant."}
+            )
 
 
 class ServiceRequestOrganization(TenantScopedModel):

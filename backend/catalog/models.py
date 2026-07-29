@@ -13,6 +13,7 @@ deliberate Phase 2 feature (tenant-level overrides/extensions), not the
 Phase 1 default.
 """
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils import timezone
 
@@ -138,6 +139,53 @@ class TenantServiceOffering(TenantScopedModel):
 
     def __str__(self):
         return self.display_name or f"{self.service_type} ({self.flag or 'unflagged'})"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.flag_relationship_id:
+            relationship = self.flag_relationship
+            if self.tenant_id and relationship.tenant_id != self.tenant_id:
+                errors["flag_relationship"] = (
+                    "The flag relationship must belong to the offering tenant."
+                )
+            if self.flag_id and relationship.flag_id != self.flag_id:
+                errors["flag_relationship"] = (
+                    "The flag relationship must reference the offering flag."
+                )
+        if self.pk:
+            original = type(self).objects.get(pk=self.pk)
+            identity_changed = any(
+                getattr(original, field) != getattr(self, field)
+                for field in (
+                    "tenant_id", "service_type_id", "flag_id", "flag_relationship_id",
+                )
+            )
+            if identity_changed:
+                from workflow.models import PROTECTED_VERSION_STATUSES
+
+                identity_is_locked = (
+                    self.service_requests.exists()
+                    or self.operation_templates.filter(
+                        versions__status__in=PROTECTED_VERSION_STATUSES,
+                    ).exists()
+                )
+            else:
+                identity_is_locked = False
+            if identity_is_locked:
+                errors["service_type"] = (
+                    "An offering referenced by service requests or protected template "
+                    "versions cannot change its identity."
+                )
+            if (
+                original.tenant_id != self.tenant_id
+                and self.operation_templates.exists()
+            ):
+                errors["tenant"] = (
+                    "An offering with operation templates cannot move to another tenant."
+                )
+        if errors:
+            raise ValidationError(errors)
 
     def is_available_for_new_requests(self, *, today=None) -> bool:
         today = today or timezone.localdate()

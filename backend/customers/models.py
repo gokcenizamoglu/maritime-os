@@ -1,4 +1,5 @@
 from config.base_models import TenantScopedModel
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -20,3 +21,16 @@ class Customer(TenantScopedModel):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        if not self.pk:
+            return
+        original = type(self).objects.get(pk=self.pk)
+        if (
+            original.tenant_id != self.tenant_id
+            and (self.vessels.exists() or self.service_requests.exists())
+        ):
+            raise ValidationError(
+                {"tenant": "A customer with vessels or service requests cannot move tenants."}
+            )

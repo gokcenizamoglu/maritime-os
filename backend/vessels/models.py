@@ -1,4 +1,5 @@
 from config.base_models import TenantScopedModel
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -48,3 +49,21 @@ class Vessel(TenantScopedModel):
 
     def __str__(self):
         return f"{self.name} (IMO {self.imo_number})"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.tenant_id and self.customer_id and self.customer.tenant_id != self.tenant_id:
+            errors["customer"] = "The vessel customer must belong to the vessel tenant."
+        if self.pk:
+            original = type(self).objects.get(pk=self.pk)
+            identity_changed = (
+                original.tenant_id != self.tenant_id
+                or original.customer_id != self.customer_id
+            )
+            if identity_changed and self.service_requests.exists():
+                errors["tenant"] = (
+                    "A vessel referenced by service requests cannot change tenant or customer."
+                )
+        if errors:
+            raise ValidationError(errors)

@@ -3,6 +3,7 @@
 from django.db import transaction
 
 from catalog.models import TenantServiceOffering
+from workflow.models import PROTECTED_VERSION_STATUSES
 
 
 class OfferingValidationError(ValueError):
@@ -62,13 +63,20 @@ def save_offering(*, tenant, data, instance=None) -> TenantServiceOffering:
     if instance.tenant_id != tenant.id:
         raise OfferingValidationError("Offering does not belong to the acting tenant.")
     identity_fields = {"service_type", "flag", "flag_relationship"}
-    if any(key in data for key in identity_fields) and instance.service_requests.exists():
+    identity_is_locked = (
+        instance.service_requests.exists()
+        or instance.operation_templates.filter(
+            versions__status__in=PROTECTED_VERSION_STATUSES,
+        ).exists()
+    )
+    if any(key in data for key in identity_fields) and identity_is_locked:
         if any(
             key in data and getattr(instance, f"{key}_id") != getattr(data[key], "id", data[key])
             for key in identity_fields
         ):
             raise OfferingValidationError(
-                "An offering referenced by ServiceRequests cannot change its identity."
+                "An offering referenced by ServiceRequests or protected template "
+                "versions cannot change its identity."
             )
     for key, value in data.items():
         setattr(instance, key, value)
