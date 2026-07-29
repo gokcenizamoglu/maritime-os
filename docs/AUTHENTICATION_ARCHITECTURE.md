@@ -88,7 +88,7 @@ for those, regardless of what login accepted.
 
 ## 3. CSRF bootstrap and rotation — the exact sequence
 
-`backend/settings.py` sets `CSRF_USE_SESSIONS = True`: the CSRF secret
+`backend/config/settings/base.py` sets `CSRF_USE_SESSIONS = True`: the CSRF secret
 lives inside the Django session, not a separate `csrftoken` cookie.
 This is the correct fit here — the browser never talks to Django, so
 there is no browser-side reader of a separate CSRF cookie to begin
@@ -323,7 +323,7 @@ no credential to try.
 
 ## 10. BasicAuthentication removal
 
-`backend/settings.py` now sets `REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]`
+`backend/config/settings/base.py` sets `REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]`
 explicitly to `["rest_framework.authentication.SessionAuthentication"]`
 — previously implicit (DRF's own default is
 `[SessionAuthentication, BasicAuthentication]`). BasicAuthentication

@@ -3,6 +3,7 @@ from catalog.views import TenantServiceOfferingViewSet
 from checklists.views import ChecklistItemViewSet, ChecklistTemplateDefinitionViewSet
 from customers.views import CustomerViewSet
 from documents.views import DocumentViewSet, public_upload_view
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
@@ -34,7 +35,6 @@ router.register("checklist-templates", ChecklistTemplateDefinitionViewSet, basen
 router.register("workflow-step-templates", WorkflowStepTemplateDefinitionViewSet, basename="workflow-step-template")
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
     # Internal staff authentication (Django session, BFF-relayed — see
     # docs/AUTHENTICATION_ARCHITECTURE.md). Kept outside the router:
@@ -54,3 +54,6 @@ urlpatterns = [
     # to the open internet without auth.
     path("upload/<uuid:token>/", public_upload_view, name="public-upload"),
 ]
+
+if settings.ADMIN_ENABLED:
+    urlpatterns.insert(0, path("admin/", admin.site.urls))

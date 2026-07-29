@@ -21,7 +21,7 @@
 /** Carries the credential Next.js's server attaches as Django's Cookie header. In this first implementation, its value IS the Django session id — see backend-auth.ts's module docstring for why that's an intentional, revisitable choice, not a permanent commitment. */
 export const SESSION_RELAY_COOKIE = "mos_session";
 
-/** Carries the current Django-issued CSRF token value, relayed as the `X-CSRFToken` header on unsafe requests. Not a forwarded Django cookie — see settings.py's `CSRF_USE_SESSIONS = True`, which means Django itself never issues a separate CSRF cookie to relay in the first place. */
+/** Carries the current Django-issued CSRF token value, relayed as the `X-CSRFToken` header on unsafe requests. Not a forwarded Django cookie — see config/settings/base.py's `CSRF_USE_SESSIONS = True`, which means Django itself never issues a separate CSRF cookie to relay in the first place. */
 export const CSRF_RELAY_COOKIE = "mos_csrf";
 
 /**

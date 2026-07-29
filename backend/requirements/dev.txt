@@ -1,11 +1,5 @@
 -r base.txt
 
-# No dev-only packages are added here yet — none are actually used.
-# The existing test suite (backend/rules/tests.py) runs on
-# django.test.SimpleTestCase / rest_framework.test.APITestCase, both of
-# which ship inside Django/DRF already listed in base.txt. No pytest,
-# factory_boy, faker, coverage, or django-debug-toolbar is imported
-# anywhere in the project — adding any of them now would be a guess,
-# not something derived from the code, so none are listed here per the
-# "do not invent dependencies" constraint. Add a package here only when
-# something in the codebase actually starts using it.
+# Loaded only by config.settings.local. Production reads process environment
+# directly and never installs or loads this repository-file helper.
+python-dotenv==1.2.2

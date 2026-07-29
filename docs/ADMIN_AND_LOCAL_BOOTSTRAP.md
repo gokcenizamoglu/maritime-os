@@ -22,14 +22,13 @@ permissions for each admin model.
 
 ## Production safety boundary
 
-Do not expose this development admin deployment to the public internet. The
-current repository does not yet provide production controls such as MFA or
-SSO enforcement, login rate limiting/lockout, production secret management,
-mandatory TLS/HSTS, secure session cookies, restricted `ALLOWED_HOSTS`, or a
-production settings module. Before any internet-facing or production use,
-those controls must be implemented and reviewed, MFA must be required for
-platform administrators, and admin access should be restricted to an
-approved private network or equivalent access gateway.
+Production settings keep the admin route disabled unless
+`DJANGO_ENABLE_ADMIN=true` is explicitly supplied. Do not expose it to the
+public internet merely because the route was enabled. MFA, login rate
+limiting or lockout, reviewed HTTPS and session controls, and preferably a
+VPN, IP allowlist, or identity-aware proxy must be operating first. Phase 1
+does not implement MFA or rate limiting; hiding or renaming the URL is not a
+substitute for those controls. See `PRODUCTION_CONFIGURATION_AND_CI.md`.
 
 ## Local demo data
 

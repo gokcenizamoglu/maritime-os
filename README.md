@@ -35,9 +35,10 @@ Tenant catalog and versioned operation-template behavior is documented in
 
 Split by environment under [`backend/requirements/`](backend/requirements/):
 
-- `base.txt` — runtime dependencies (Django, djangorestframework)
-- `dev.txt` — `-r base.txt` + development-only packages (currently none needed — see the file for why)
-- `production.txt` — `-r base.txt` + production-only packages (currently none — see the file; server/DB/secrets choices aren't made yet)
+- `base.txt` — pinned runtime dependencies, including PostgreSQL support
+- `dev.txt` — local development dependency entrypoint
+- `test.txt` — local and CI test dependency entrypoint
+- `production.txt` — production dependency entrypoint
 
 Install with `pip install -r backend/requirements/dev.txt` for local
 development.
@@ -48,19 +49,21 @@ From the `backend/` directory:
 
 ```bash
 cd backend
-pip install -r requirements/dev.txt
-python manage.py migrate
-python manage.py test
+pip install -r requirements/test.txt
+python manage.py test --settings=config.settings.test
 ```
 
 ### Running the backend locally
 
 ```bash
+docker compose up -d db
 cd backend
 python manage.py runserver
 ```
 
-Dev-only setup: SQLite, `DEBUG=True`. Not configured for production.
+Local development uses PostgreSQL and `config.settings.local`. Environment
+selection, production fail-fast configuration, and CI are documented in
+[`docs/PRODUCTION_CONFIGURATION_AND_CI.md`](docs/PRODUCTION_CONFIGURATION_AND_CI.md).
 
 ## Frontend
 
@@ -75,7 +78,7 @@ management surface is currently backend/API-first; see
 
 ```bash
 cd frontend
-npm install
+npm ci
 ```
 
 ### Environment variable

@@ -64,7 +64,7 @@ function findDjangoSessionId(setCookieValues: string[]): string | null {
  * GET /api/auth/csrf/ against Django directly. Returns the masked CSRF
  * token AND the session id Django assigned to carry that token's
  * secret — needed even before login, because `CSRF_USE_SESSIONS` (see
- * backend/settings.py) ties the CSRF secret to a session from the very
+ * backend/config/settings/base.py) ties the CSRF secret to a session from the very
  * first request, before any user is authenticated.
  */
 async function fetchCsrfBootstrap(existingSessionId?: string): Promise<CsrfBootstrap | null> {

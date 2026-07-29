@@ -4,7 +4,7 @@ run and populate the dispatcher's registry exactly once at process
 startup.
 
 WIRING: this is called from `events/apps.py` -> `EventsConfig.ready()`,
-NOT from `settings.py` or a management command — `AppConfig.ready()` is
+NOT from a settings module or a management command — `AppConfig.ready()` is
 the documented, race-free hook Django provides for exactly this kind of
 "import my signal/event handlers once" registration, and it runs only
 after the whole app registry is populated, so importing other domains'

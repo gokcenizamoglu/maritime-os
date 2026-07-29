@@ -10,3 +10,12 @@ djangorestframework==3.16.1
 # existing convention of pinning to what's actually installed/verified,
 # not the latest available release.
 django-filter==25.2
+# Django's supported PostgreSQL driver. The binary extra keeps local and CI
+# setup deterministic without requiring a compiler or libpq toolchain.
+psycopg[binary]==3.3.4
+
+# Runtime transitive dependencies are pinned to the versions already verified
+# with this repository so a fresh CI environment does not resolve newer builds.
+asgiref==3.11.1
+sqlparse==0.5.5
+tzdata==2025.3

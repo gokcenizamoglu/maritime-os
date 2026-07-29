@@ -1,0 +1,6 @@
+-r base.txt
+
+# Settings tests import config.settings.local in isolated subprocesses.
+python-dotenv==1.2.2
+
+# Django's built-in test runner is used; no additional test framework is needed.

@@ -253,7 +253,7 @@ class LogoutTests(APITestCase):
 
 class SessionAuthenticationConfigurationTests(APITestCase):
     """
-    Verifies the explicit DRF settings from this sprint (settings.py):
+    Verifies the explicit DRF settings from this sprint (config/settings/base.py):
     SessionAuthentication only, BasicAuthentication removed.
     """
     @classmethod
@@ -281,7 +281,7 @@ class SessionAuthenticationConfigurationTests(APITestCase):
         credentials = base64.b64encode(b"ops-user:correct-horse-battery-staple").decode()
         response = client.get(ME_URL, HTTP_AUTHORIZATION=f"Basic {credentials}")
         # SessionAuthentication is the ONLY configured authentication
-        # class (settings.py) now — valid Basic credentials must NOT
+        # class (config/settings/base.py) now — valid Basic credentials must NOT
         # authenticate the request; it must be rejected exactly as if
         # no credentials were sent at all.
         self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))

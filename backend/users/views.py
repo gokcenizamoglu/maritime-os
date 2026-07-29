@@ -43,7 +43,7 @@ class CsrfBootstrapView(APIView):
     `get_token(request)` both establishes (or reuses) the CSRF secret
     tied to this request's session and returns the masked token to send
     back. Calling it is also what causes a Set-Cookie for the session
-    (under CSRF_USE_SESSIONS — see settings.py) to be emitted on the
+    (under CSRF_USE_SESSIONS — see config/settings/base.py) to be emitted on the
     response if no session existed yet; the BFF captures that Set-Cookie
     the same way it captures the post-login one.
 
